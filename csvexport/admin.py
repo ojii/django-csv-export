@@ -9,6 +9,7 @@ import re
 class CSVExportableAdmin(admin.ModelAdmin):
     csv_export_url = '~csv/'
     csv_export_dialect = 'excel'
+    csv_follow_relations = []
     csv_export_fmtparam = {
        'delimiter': ',',
        'quotechar': '\\',
@@ -36,9 +37,9 @@ class CSVExportableAdmin(admin.ModelAdmin):
     
     def csv_export(self, request):
         fields = self.get_csv_export_fields(request)
-        headers = [f[1] for f in fields]
+        headers = [self.csv_get_fieldname(f) for f in fields]
         response = HttpResponse(mimetype='text/csv')
-        response['Content-Disposition'] = 'attachment; filename=%s' % self.get_csv_export_filename(request)
+        response['Content-Disposition'] = 'attachment; filename=%s' % self.csv_get_export_filename(request)
         writer = csv.writer(response, self.csv_export_dialect, **self.csv_export_fmtparam)
         writer.writerow(headers)
         for row in self.model.objects.all():
@@ -50,20 +51,29 @@ class CSVExportableAdmin(admin.ModelAdmin):
         """
         Return a sequence of tuples which should be included in the export.
         """
-        return [(f.name, f.verbose_name) for f in self.model._meta.fields]
+        fields = [f.name for f in self.model._meta.fields]
+        for relation in self.csv_follow_relations:
+            for field in self.model._meta.get_field_by_name(relation)[0].rel.to._meta.fields:
+                fields.append([relation, field.name])
+        return fields
     
-    def get_csv_export_filename(self, request):
+    def csv_get_export_filename(self, request):
         ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         return '%s_%s_%s_export.csv' % (ts, self.model._meta.app_label, self.model._meta.module_name)
 
     def csv_resolve_field(self, row, fieldname):
-        if isinstance(row, basestring):
+        if isinstance(fieldname, basestring):
             return getattr(row, fieldname)
         else:
             obj = row
             for bit in fieldname:
                 obj = getattr(obj, bit)
             return obj
+        
+    def csv_get_fieldname(self, field):
+        if isinstance(field, basestring):
+            return field
+        return '.'.join(field)
         
     def changelist_view(self, request, extra_context=None):
         extra_context = {'csv_export_url': self.csv_export_url}
