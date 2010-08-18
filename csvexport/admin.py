@@ -1,6 +1,6 @@
 from datetime import datetime
 from django.contrib import admin
-from django.contrib.admin.util import unquote
+from django.contrib.admin.views.main import ChangeList
 from django.http import HttpResponse
 from django.utils.functional import update_wrapper
 import csv
@@ -38,12 +38,7 @@ class CSVExportableAdmin(admin.ModelAdmin):
     def csv_export(self, request):
         fields = self.get_csv_export_fields(request)
         headers = [self.csv_get_fieldname(f) for f in fields]
-        
-        from django.contrib.admin.views.main import ChangeList
-        cl = ChangeList(request, self.model, self.list_display, self.list_display_links, self.list_filter,
-            self.date_hierarchy, self.search_fields, self.list_select_related, self.list_per_page, self.list_editable, self)
-        qs = cl.get_query_set()
-        
+        qs = self.get_csv_queryset(request)
         response = HttpResponse(mimetype='text/csv')
         response['Content-Disposition'] = 'attachment; filename=%s' % self.csv_get_export_filename(request)
         writer = csv.writer(response, self.csv_export_dialect, **self.csv_export_fmtparam)
@@ -52,6 +47,13 @@ class CSVExportableAdmin(admin.ModelAdmin):
             csvrow = [f.encode('utf-8') if isinstance(f, unicode) else f for f in [self.csv_resolve_field(row, f) for f in fields]]
             writer.writerow(csvrow)    
         return response
+    
+    def get_csv_queryset(self, request):
+        cl = ChangeList(request, self.model, self.list_display,
+            self.list_display_links, self.list_filter, self.date_hierarchy,
+            self.search_fields, self.list_select_related, self.list_per_page,
+            self.list_editable, self)
+        return cl.get_query_set()
         
     def get_csv_export_fields(self, request):
         """
