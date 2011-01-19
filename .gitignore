@@ -1,4 +1,5 @@
-*.egg-info
-dist
 *.pyc
-.*project
+*~
+.*
+dist
+*egg-info*

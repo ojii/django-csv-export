@@ -84,5 +84,5 @@ class CSVExportableAdmin(admin.ModelAdmin):
         return '.'.join(field)
         
     def changelist_view(self, request, extra_context=None):
-        extra_context = {'csv_export_url': self.csv_export_url}
+        extra_context = {'csv_export_url': self.csv_export_url, 'request': request}
         return super(CSVExportableAdmin, self).changelist_view(request, extra_context)
